@@ -1,30 +1,16 @@
-#!/bin/sh
-set -u
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
 DOCKER_COMPOSE="docker-compose"
-
-if ! command -v $DOCKER_COMPOSE >/dev/null 2>&1; then
-  # Verify if this system is using docker-compose v2, which on some systems is only exposed
-  # as a sub-command of docker.
-  if command -v "docker" >/dev/null 2>&1 && docker compose version --short >/dev/null 2>&1; then
-    echo "note: using 'compose' docker subcommand rather than 'docker-compose'"
-
-    DOCKER_COMPOSE="docker compose"
-  else
-    echo "error: docker-compose is required to be in \$PATH to run this" >&2
-    echo "install instructions: https://docs.docker.com/compose/install/" >&2
-    exit 1
-  fi
-fi
 
 echo "detecting architecture..."
 
 # Image base to use. The magic trick that allows this to work painlessly on both x86 and AArch64 is
 # just the `arm64v8/` prefix when building natively.
-export IMAGE_BASE=
+export IMAGE_BASE=''
 
 # Whether to evaluate `docker-compose.emulation.yml`.
-WANTS_EMULATION=
+WANTS_EMULATION=''
 
 case "$(uname -m)" in
 arm|armel|armhf|arm64|armv[4-9]*l|aarch64)
@@ -67,9 +53,10 @@ if [ -n "$WANTS_EMULATION" ] && [ "$COMPOSE_ACTION" = "up" ]; then
   readonly COMPOSE_VERSION
   if [ "$COMPOSE_VERSION" -ge 2 ]; then
     echo "  detected docker-compose $COMPOSE_VERSION, pre-building images"
-    $DOCKER_COMPOSE $COMPOSE_ARGS build
+    eval "$DOCKER_COMPOSE $COMPOSE_ARGS build"
   fi
-fi
+ fi
 
 set -x
-$DOCKER_COMPOSE $COMPOSE_ARGS $COMPOSE_ACTION "$@"
+eval "$DOCKER_COMPOSE $COMPOSE_ARGS $COMPOSE_ACTION $*"
+
